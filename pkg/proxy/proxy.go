@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"fmt"
+	gossh "golang.org/x/crypto/ssh"
 	"regexp"
 	"strings"
 	"time"
@@ -126,6 +127,8 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
 		return nil, err
 	}
+	// set new client env
+	p.setConnectEnv(sess)
 	pty := p.UserConn.Pty()
 	srvConn = srvconn.NewServerSSHConnection(sess,
 		srvconn.OptionCharset(p.getAssetCharset()))
@@ -155,6 +158,8 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 		logger.Infof("Conn[%s] get cache ssh client(%s@%s)",
 			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 		sess, err1 := cacheSSHClient.NewSession()
+		// set cache client env
+		p.setConnectEnv(sess)
 		if err1 != nil {
 			logger.Errorf("Conn[%s] cache ssh client(%s@%s) create session err: %s",
 				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err1)
@@ -343,6 +348,25 @@ func (p *ProxyServer) getAssetCharset() string {
 	logger.Infof("Conn[%s] asset %s charset use: %s",
 		p.UserConn.ID(), p.Asset.Hostname, charset)
 	return charset
+}
+
+func (p *ProxyServer) setConnectEnv(session *gossh.Session) {
+	if err := session.Setenv("JUMPSERVER_USERNAME", p.User.Username); err != nil {
+		logger.Errorf("set UserName env error: %v", err)
+	}
+	comment := p.Asset.Comment
+	if len(comment) == 0 || strings.Contains(comment, "=") {
+		return
+	}
+	envs := strings.Split(comment, ",")
+	for i := 0; i < len(envs); i++ {
+		ev := strings.Split(envs[i], "=")
+		// JUMPSERVER_KEYNAME
+		envName := fmt.Sprintf("JUMPSERVER_%s", strings.ToUpper(ev[0]))
+		if err := session.Setenv(envName, ev[1]); err != nil {
+			logger.Errorf("set %s env error: %v", envName, err)
+		}
+	}
 }
 
 // Proxy 代理
