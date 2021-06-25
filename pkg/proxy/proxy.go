@@ -355,7 +355,8 @@ func (p *ProxyServer) setConnectEnv(session *gossh.Session) {
 		logger.Errorf("set UserName env error: %v", err)
 	}
 	comment := p.Asset.Comment
-	if len(comment) == 0 || strings.Contains(comment, "=") {
+	if len(comment) == 0 || ! strings.Contains(comment, "=") {
+		logger.Errorf("comment is empty: %s", comment)
 		return
 	}
 	envs := strings.Split(comment, ",")

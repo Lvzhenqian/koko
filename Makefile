@@ -48,7 +48,8 @@ $(PLATFORMS): Asset
 .PHONY: docker
 docker:
 	@echo "build docker images"
-	docker build -t koko .
+	docker build -t ggangelo/koko:$(VERSION) .
+	docker push ggangelo/koko:$(VERSION)
 
 .PHONY: clean
 clean:
